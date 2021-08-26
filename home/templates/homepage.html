@@ -35,9 +35,13 @@
       </div>
     </div>
   </div>
-<div id="my_dataviz"></div>
-<div id="graph_simple"></div>
-<div id="graph_casos_mortes"></div>
+   <div id="my_dataviz"></div>
+    <div id="graph_casos_idade"></div>
+  
+
+    <div id="graph_casos_mortes"></div>
+    <div id="graph_obitos_doencas"></div>
+
 <style>
 
   .rcorners1 {
@@ -63,19 +67,16 @@
 </style>
 
 <script>
+//domain = data
+//range = scren scale
+
+
 $(document).ready(function(){
     
     $('#date_start').val({{datas|safe}}[0].dt_min);
     $('#date_end').val({{datas|safe}}[0].dt_max);
-    
-    //data_idade = {{data_idade|safe}}
-   // graph_idade(data_idade);
-   // data_casos_mortes = {{data_casos_mortes|safe}}
-   // graph_casos_mortes2(data_casos_mortes)
-  
     filtrar();
 });
-
 
 $('#select_cidades').change(function() {
   filtrar();
@@ -107,7 +108,10 @@ function filtrar(){
             data_idade = dataJson.data_idade;
             graph_idade(data_idade);
             data_casos_mortes = dataJson.data_casos_mortes;
-            graph_casos_mortes2(data_casos_mortes)
+            graph_casos_mortes(data_casos_mortes);
+            data_obitos_doencas = dataJson.data_obitos_doencas;
+            console.log("ffff", data_obitos_doencas);
+            graph_obitos_doencas(data_obitos_doencas);
           }          
         }
       });
@@ -121,9 +125,9 @@ function graph_idade(data){
 
   
   // append the svg object to the body of the page
-  $("#my_dataviz").html("");
+  $("#graph_casos_idade").html("");
   
-  var svg = d3.select("#my_dataviz")
+  var svg = d3.select("#graph_casos_idade")
     .append("svg")
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
@@ -186,161 +190,6 @@ function graph_idade(data){
 }
 
 function graph_casos_mortes(data){
-  
-  var margin = {top: 10, right: 30, bottom: 30, left: 60},
-    width = 460 - margin.left - margin.right,
-    height = 400 - margin.top - margin.bottom;
-
-  //var parseDate = d3.timeParse("%Y-%m-%d");
-  
-  //var x = d3.scaleTime().range([0, width]);
-  //var y0 = d3.scaleLinear().range([height, 0]);
-  //var y1 = d3.scaleLinear().range([height, 0]);
-
-
-  //var xAxis = d3.axisBottom().scale(x).ticks(5);
-  //var yAxisLeft = d3.axisLeft().scale(y0).ticks(5);
-  //var yAxisRight = d3.axisRight().scale(y1).ticks(5); 
- 
-
-   
-  var svg = d3.select("#graph_casos_mortes")
-      .append("svg")
-          .attr("width", width + margin.left + margin.right)
-          .attr("height", height + margin.top + margin.bottom)
-      .append("g")
-          .attr("transform", 
-                "translate(" + margin.left + "," + margin.top + ")");
-  
-  // Get the data
-    
-  // Scale the range of the data
-  data.forEach(function(d) {
-    d.dia = d3.timeParse("%Y-%m-%d")(d.dia);
-    d.casos = parseInt(d.casos);
-   // d.obitos = parseInt(d.obitos);
-  });
-
-  data.forEach(function(data) {
-    
-    //x.domain(d3.extent(data, function(d) { return d.dia; }));
-    var x = d3.scaleTime()
-      .domain(d3.extent(data, function(d) { return d.dia; }))
-      .range([ 0, width ]);
-
-    svg.append("g")            // Add the X Axis
-      .attr("transform", "translate(0," + height + ")")
-      .call(d3.axisBottom(x));
-
-    // Add Y axis
-    var y0 = d3.scaleLinear()
-      .domain([0, d3.max(data, function(d) { return +d.casos; })])
-      .range([ height, 0 ]);
-    svg.append("g")
-      .call(d3.axisLeft(y0));
-
-    //y0.domain([0, d3.max(data, function(d) {
-    //return Math.max(d.casos); })]); 
-    
-    /*var y1 = d3.scaleLinear()
-      .domain([0, d3.max(data, function(d) { return +d.obitos; })])
-      .range([ height, 0 ]);
-    svg.append("g")
-      .attr("class", "axisRed")
-      .call(d3.axisRight(y1));*/
-
-    //y1.domain([0, d3.max(data, function(d) { 
-    //return Math.max(d.obitos); })]);
-   
-
-    //var valueline = d3.line()
-      //.x(function(d) { return x(d.dia); })
-      //.y(function(d) { return y0(d.casos); });
-  
-    //var valueline2 = d3.line()
-     // .x(function(d) { return x(d.dia); })
-     // .y(function(d) { return y1(d.obitos); });
-
-    svg.append("path")        // Add the valueline path.
-      .datum(data)
-      .attr("fill", "none")
-      .attr("stroke", "steelblue")
-      .attr("stroke-width", 1.5)
-      .attr("d", d3.line()
-        .x(function(d) { return x(d.dia); })
-        .y(function(d) { return y0(d.casos); }));
-    
-    /*svg.append("path")        // Add the valueline2 path.
-      .datum(data)
-      .attr("class", "line")
-      .style("stroke", "red")
-      .attr("d", d3.line()
-        .x(function(d) { return x(d.dia); })
-        .y(function(d) { return y1(d.obitos); }));
-
-    */
-
-    //svg.append("g")
-    //  .attr("class", "axisSteelBlue")
-    //  .call(d3.axisLeft(y0));
-   
-    //svg.append("g")	
-    //  .attr("class", "axisRed")
-    //  .attr("transform", "translate( " + width + ", 0 )")
-    //  .call(d3.axisRight(y1));			
-       
-
-  });
-}
-
-function graph_simple(data){
-  var margin = {top: 10, right: 30, bottom: 30, left: 60},
-    width = 460 - margin.left - margin.right,
-    height = 400 - margin.top - margin.bottom;
-  
-  var svg = d3.select("#graph_simple")
-    .append("svg")
-      .attr("width", width + margin.left + margin.right)
-      .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-      .attr("transform",
-            "translate(" + margin.left + "," + margin.top + ")");
-  
-  data.forEach(function(d) {
-    d.dia = d3.timeParse("%Y-%m-%d")(d.dia);
-    d.casos = parseInt(d.casos);
-    //d.obitos = parseInt(d.obitos);
-  });
-  data.forEach(function(d) {
-    var x = d3.scaleTime()
-      .domain(d3.extent(data, function(d) { return d.dia; }))
-      .range([ 0, width ]);
-    svg.append("g")
-      .attr("transform", "translate(0," + height + ")")
-      .call(d3.axisBottom(x));
-
-    // Add Y axis
-    var y = d3.scaleLinear()
-      .domain([0, d3.max(data, function(d) { return +d.casos; })])
-      .range([ height, 0 ]);
-    svg.append("g")
-      .call(d3.axisLeft(y));
-
-    // Add the line
-    svg.append("path")
-      .datum(data)
-      .attr("fill", "none")
-      .attr("stroke", "steelblue")
-      .attr("stroke-width", 1.5)
-      .attr("d", d3.line()
-        .x(function(d) { return x(d.dia) })
-        .y(function(d) { return y(d.casos) })
-        )
-  });
-
-}
-
-function graph_casos_mortes2(data){
   var margin = {top: 10, right: 30, bottom: 30, left: 60},
     width = 1200 - margin.left - margin.right,
     height = 500 - margin.top - margin.bottom;
@@ -354,12 +203,11 @@ function graph_casos_mortes2(data){
       .attr("transform",
             "translate(" + margin.left + "," + margin.top + ")");
   
-  data.forEach(function(d) {
-    d.dia = d3.timeParse("%Y-%m-%d")(d.dia);
-    d.casos = parseInt(d.casos);
-    d.obitos = parseInt(d.obitos);
-  });
-  data.forEach(function(d) {
+    data.forEach(function(d) {
+      d.dia = d3.timeParse("%Y-%m-%d")(d.dia);
+      d.casos = parseInt(d.casos);
+      d.obitos = parseInt(d.obitos);
+    });
     var x = d3.scaleTime()
       .domain(d3.extent(data, function(d) { return d.dia; }))
       .range([ 0, width ]);
@@ -368,43 +216,109 @@ function graph_casos_mortes2(data){
       .call(d3.axisBottom(x));
 
     // Add Y axis
-    var y = d3.scaleLinear()
+    var ycasos = d3.scaleLinear()
       .domain([0, d3.max(data, function(d) { return +d.casos; })])
       .range([ height, 0 ]);
     svg.append("g")
       .attr("class", "y axis")
       .style("fill", "steelblue")
-      .call(d3.axisLeft(y));
+      .call(d3.axisLeft(ycasos));
     
-    var y0 = d3.scaleLinear()
+    var yobitos = d3.scaleLinear()
       .domain([0, d3.max(data, function(d) { return +d.obitos; })])
       .range([ height, 0 ]);
+
     svg.append("g")
       .attr("class", "y axis")	
       .attr("transform", "translate(" + width + " ,0)")	
       .style("fill", "red")
-      .call(d3.axisRight(y0));
+      .call(d3.axisRight(yobitos));
 
+    
     // Add the line
     svg.append("path")
       .datum(data)
       .attr("d", d3.line()
         .x(function(d) { return x(d.dia) })
-        .y(function(d) { return y(d.casos) })
+        .y(function(d) { return ycasos(d.casos) })
         )
-   
 
     // Add the line
     svg.append("path")
       .datum(data)
+      .style("stroke", "red")
       .attr("d", d3.line()
         .x(function(d) { return x(d.dia) })
-        .y(function(d) { return y(d.obitos) })
+        .y(function(d) { return yobitos(d.obitos) })
         )
-  });
+
+    
+  
 }
 
+function graph_obitos_doencas(data){
+ // set the dimensions and margins of the graph
+  var margin = {top: 30, right: 10, bottom: 10, left: 0},
+    width = 1200 - margin.left - margin.right,
+    height = 200 - margin.top - margin.bottom;
 
+  // append the svg object to the body of the page
+  var svg = d3.select("#graph_obitos_doencas")
+  .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform",
+          "translate(" + margin.left + "," + margin.top + ")");
+  keys = ["asma", "cardiopatia", "diabetes", "doenca_hematologica", "doenca_hepatica", "doenca_neurologica", 
+          "doenca_renal", "imunodepressao", "obesidade", "outros_fatores_de_risco", "pneumopatia", "puerpera", "sindrome_de_down"]
+
+  var yScale = d3.scaleOrdinal()
+        .domain(["false", "true"])
+        .range([height, 0])
+  
+  x = d3.scalePoint()
+      .range([0, width])
+      .padding(1)
+      .domain(keys);
+
+  
+    
+  const line = d3.line()
+    .defined(([, value]) => value != null)
+    .y(([key, value]) => yScale(value))
+    .x(([key]) => x(key))
+  
+  var randomColor = Math.floor(Math.random()*16777215).toString(16);
+  // Add the line
+    svg
+      .selectAll("myPath")
+      .data(data)
+      .enter().append("path")
+      .attr("d", d => line(d3.cross(keys, [d], (key, d) => [key, d[key]])))
+      .style("fill", "none")
+      .style("stroke", randomColor)
+      .style("stoke-opacity", 0.01)
+      .style("stoke-width", 1.5)
+
+      // Draw the axis:
+    svg.selectAll("myAxis")
+      // For each dimension of the dataset I add a 'g' element:
+      .data(keys).enter()
+      .append("g")
+      // I translate this element to its right position on the x axis
+      .attr("transform", function(key) { return "translate(" + x(key) + ")"; })
+      // And I build the axis with the call function
+      .call(d3.axisLeft().scale(yScale))
+      // Add axis title
+      .append("text")
+        .style("text-anchor", "middle")
+        .attr("y", -9)
+        .text(function(key) { return key; })
+        .style("fill", "black")
+  
+
+}
 
 
 </script>

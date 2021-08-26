@@ -46,8 +46,9 @@ def filtrar(request):
 
             casos_idade = get_casos_idade(date_start, date_end, cidade)
             casos_mortes = get_casos_mortes_periodo_municipio(date_start, date_end, cidade)
+            obitos_doencas = get_obitos_doencas(date_start, date_end, cidade)
             return HttpResponse(
-                json.dumps({ 'success': 'true', 'data_casos_mortes': casos_mortes, 'data_idade': casos_idade
+                json.dumps({ 'success': 'true', 'data_casos_mortes': casos_mortes, 'data_idade': casos_idade, 'data_obitos_doencas': obitos_doencas
                 }))
     return HttpResponse(
             json.dumps({ 'success': 'false'
@@ -76,7 +77,21 @@ def get_casos_mortes_periodo_municipio(inicio, fim, municipio):
     if(len(municipio)>0):
         sql+=' AND [municipio] IN (?) '
         param.append(municipio)
-    sql+= ' GROUP BY [dia_inicio_sintomas]'
+    sql+= ' GROUP BY [dia_inicio_sintomas] ORDER BY [dia_inicio_sintomas] '
     result = pd.read_sql(sql, params=param, con=conn)
     return result.to_dict('records')
 
+def get_obitos_doencas(inicio, fim, municipio):
+    sql = "SELECT [asma], [cardiopatia], [diabetes], [doenca_hematologica], [doenca_hepatica]," \
+            "[doenca_neurologica], [doenca_renal], [imunodepressao], [obesidade]," \
+            "[outros_fatores_de_risco], [pneumopatia], [puerpera], [sindrome_de_down] " \
+         "FROM [casos_doencas]" \
+         "WHERE [obito] = 1 AND [dia_inicio_sintomas] BETWEEN ? AND ? "
+	
+    param=[inicio, fim]
+    if(len(municipio)>0):
+        sql+=' AND [municipio] IN (?) '
+        param.append(municipio)
+
+    result = pd.read_sql(sql, params=param, con=conn)
+    return result.to_dict('records')

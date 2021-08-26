@@ -14,7 +14,9 @@ conn = pyodbc.connect('Driver={SQL Server};'
                           'Server=DESKTOP-5HPPJ5N\SQLEXPRESS;'
                           'Database=Covid19;'
                           'Trusted_Connection=yes;')
+
 cursor = conn.cursor()
+
 def inserir_dia_semana(df_dia_semana):
     for index, row in df_dia_semana.iterrows():
         cursor.execute(
@@ -231,6 +233,7 @@ print("Total registros internações serie antiga: ", len(df_internacoes))
 inserir_internacoes(df_internacoes, df_drs)
 print('Internações série antiga Completo')
 '''
+
 print('Internações série nova')
 # Get ultimo dia de registo de internações
 cursor.execute('SELECT MAX(dia) FROM covid_internacoes')
