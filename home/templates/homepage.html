@@ -2,48 +2,108 @@
 <meta charset="utf-8">
  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
  <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-    <title>Title</title>
+    <title>Covid São Paulo</title>
 <script src="https://d3js.org/d3.v5.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 <script src="https://code.jquery.com/jquery-3.5.0.js"></script>
 <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-tip/0.7.1/d3-tip.min.js"></script>
 <body>
+<div style="width:100%; height:75px;">
+  <div style="float:left; width:35%; height:70px;">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/0/0a/Logo_Unesp.svg"  width="30%">
+  </div>
+  <div style="float:left; width:65%; height:70px;">
+    <h1 >Covid no Estado de São Paulo</h1>
+  </div>
+</div>
+  <div>
+      <hr style="background-color:#5fabed">
+  </div>
+  </div>
   <div class="container">
     <div class="row">
-      <div class="col-sm">
+      <div class="col-sm-4">
         <div class="form-group">
-        <label for="select_cidades">Cidades:</label>
-        <select class="form-select" id="select_cidades">
-          <option value='0'>TODAS</option>
-          {% for c in cidades %}
-            <option value={{c.cod_ibge}}>{{c.nome_municipio}}</option>
-          {% endfor %}
-        </select>
+          <label for="select_cidades">Cidades:</label>
+          <select class="form-select" id="select_cidades">
+            <option value='0'>TODAS</option>
+            {% for c in cidades %}
+              <option value={{c.cod_ibge}}>{{c.nome_municipio}}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
-      </div>
-      <div class="col-sm">
+      <div class="col-sm-8">
         <div class="form-group">
           <label>Periodo:</label>
           <div class="input-group">
             
             <input type="date" class="form-control" id="date_start">
-            <span class="input-group-text" id="basic-addon">To</span>
+            <span class="input-group-text" id="basic-addon"> até </span>
             <input type="date" class="form-control" id="date_end">
           </div>
         </div>
       </div>
+      <div class="col-sm-12">
+        <br/>
+        <br/>
+      </div>
+      <div class="col-sm-4 rcorners1" style="background-color:#5fabed">
+          <h4 style="color:white">Quantidade de casos</h4>
+          <h4 style="color:white" id="qtde_casos">
+      </div>
+      <div class="col-sm-4 rcorners1" style="background-color:#5fabed">
+          <h4 style="color:white" >Quantidade de obitos</h4>
+          <h4 style="color:white" id="qtde_obitos">
+      </div>
+      <div class="col-sm-4 rcorners1" style="background-color:#5fabed">
+          <h4 style="color:white">Quantidade de Vacinados</h4>
+          <h4 style="color:white" id="qtde_vacinados">
+      </div>
+      <div class="col-xl">
+        <br/>
+        <br/>
+        <br/>
+        <div >
+          <h4 align="center"> Casos por idade </h4>
+          <div id="graph_casos_idade"></div>
+        <div>
+        <br/>
+        <br/>
+        <div>
+          <h4 align="center"> Casos e Mortes por dia </h4>
+          <div id="graph_casos_mortes"></div>
+        </div>
+        <br/>
+        <br/>
+        <div>
+          <h4 align="center"> Relação de doenças por morte</h4>
+          <div id="graph_obitos_doencas"></div>
+        </div>
+        <br/>
+        <br/>
+        <div>
+          <h4 align="center">Doses de vacina aplicadas por dia</h4>
+          <div id="graph_vacina_evolucao"></div>
+        </div>
+        
+      </div>
     </div>
   </div>
    <div id="my_dataviz"></div>
-    <div id="graph_casos_idade"></div>
   
 
-    <div id="graph_casos_mortes"></div>
-    <div id="graph_obitos_doencas"></div>
-
 <style>
-
+  .head{
+    background-color:#87CEFA
+  }
+  .center {
+    text-align: center;
+  }
+  .quatificadores{
+    color:white
+  }
   .rcorners1 {
     border-radius: 5px;
     background: #F0F0F0;
@@ -92,6 +152,7 @@ function filtrar(){
   var cidade = $('#select_cidades').val();
   var date_start = $('#date_start').val();
   var date_end = $('#date_end').val();
+
   $.ajax({
         type: "POST",
         url: '/filtrar/',
@@ -104,14 +165,20 @@ function filtrar(){
         {
           dataJson = JSON.parse(data);
           if(dataJson.success){
-            //d3.select("svg").remove();
+            qtdes = dataJson.qtdes
+            
+            $("#qtde_casos").text(qtdes[0].casos.toLocaleString('pt-BR'))
+            $("#qtde_obitos").text(qtdes[0].obitos.toLocaleString('pt-BR'))
+
             data_idade = dataJson.data_idade;
             graph_idade(data_idade);
             data_casos_mortes = dataJson.data_casos_mortes;
             graph_casos_mortes(data_casos_mortes);
             data_obitos_doencas = dataJson.data_obitos_doencas;
-            console.log("ffff", data_obitos_doencas);
             graph_obitos_doencas(data_obitos_doencas);
+            data_vacina_evolucao = dataJson.data_vacina_evolucao;
+          
+            graph_vacina_evolucao(data_vacina_evolucao);
           }          
         }
       });
@@ -261,7 +328,8 @@ function graph_obitos_doencas(data){
   var margin = {top: 30, right: 10, bottom: 10, left: 0},
     width = 1200 - margin.left - margin.right,
     height = 200 - margin.top - margin.bottom;
-
+  
+  $("#graph_obitos_doencas").html("");
   // append the svg object to the body of the page
   var svg = d3.select("#graph_obitos_doencas")
   .append("svg")
@@ -318,6 +386,74 @@ function graph_obitos_doencas(data){
         .style("fill", "black")
   
 
+}
+
+function graph_vacina_evolucao(data){
+  var margin = {top: 10, right: 30, bottom: 30, left: 60},
+    width = 1200 - margin.left - margin.right,
+    height = 500 - margin.top - margin.bottom;
+  
+  $("#graph_vacina_evolucao").html("");
+  var svg = d3.select("#graph_vacina_evolucao")
+    .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+      .attr("transform",
+            "translate(" + margin.left + "," + margin.top + ")");
+  
+    data.forEach(function(d) {
+     
+      d.dia = d3.timeParse("%Y-%m-%d")(d.dia);
+      d.totalmente = parseInt(d.totalmente_dose);
+      d.parcialmente = parseInt(d.primeira_dose);
+    });
+    var x = d3.scaleTime()
+      .domain(d3.extent(data, function(d) { return d.dia; }))
+      .range([ 0, width ]);
+    svg.append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x));
+
+    // Add Y axis
+    var ycasos = d3.scaleLinear()
+      .domain([0, d3.max(data, function(d) { return +d.totalmente; })])
+      .range([ height, 0 ]);
+    svg.append("g")
+      .attr("class", "y axis")
+      .style("fill", "steelblue")
+      .call(d3.axisLeft(ycasos));
+    
+    var yobitos = d3.scaleLinear()
+      .domain([0, d3.max(data, function(d) { return +d.parcialmente; })])
+      .range([ height, 0 ]);
+
+    svg.append("g")
+      .attr("class", "y axis")	
+      .attr("transform", "translate(" + width + " ,0)")	
+      .style("fill", "red")
+      .call(d3.axisRight(yobitos));
+
+    
+    // Add the line
+    svg.append("path")
+      .datum(data)
+      .attr("d", d3.line()
+        .x(function(d) { return x(d.dia) })
+        .y(function(d) { return ycasos(d.totalmente) })
+        )
+
+    // Add the line
+    svg.append("path")
+      .datum(data)
+      .style("stroke", "red")
+      .attr("d", d3.line()
+        .x(function(d) { return x(d.dia) })
+        .y(function(d) { return yobitos(d.parcialmente) })
+        )
+
+    
+  
 }
 
 

@@ -1,9 +1,10 @@
-from sklearn.neural_network import MLPClassifier
-from sklearn.preprocessing import StandardScaler
-import pyodbc
+#from sklearn.neural_network import MLPClassifier
+#from sklearn.preprocessing import StandardScaler
+#import pyodbc
 import pandas as pd
 from datetime import datetime
 
+'''
 conn = pyodbc.connect('Driver={SQL Server};'
                           'Server=DESKTOP-5HPPJ5N\SQLEXPRESS;'
                           'Database=Covid19;'
@@ -27,3 +28,19 @@ clf.fit(features, samples)
 print("valor: ", clf.predict([[20200830, 3516200, 45, 0, 0, 0, 0, 0], [20200830, 3516200, 45, 0, 1, 1, 0, 0], 
 [20200830, 3516200, 25, 1, 0, 0, 1, 1], [20200830, 3516200, 25, 0, 0, 0, 0, 0]]))
 
+
+df = pd.read_csv(r".\templates\files\20210825_evolucao_aplicacao_doses.csv", sep=";")
+print(df);
+'''
+
+import psycopg2
+PGHOST="localhost"
+PGDATABASE="covidsp"
+PGUSER="postgres"
+PGPASSWORD="webpro33" 
+# Set up a connection to the postgres server.
+conn_string = "host="+ PGHOST +" port="+ "5432" +" dbname="+ PGDATABASE +" user=" + PGUSER +" password="+ PGPASSWORD
+conn=psycopg2.connect(conn_string)
+print("Connected!")
+cursor = conn.cursor()
+df =  pd.read_sql("SELECT * FROM casos_doencas", conn)

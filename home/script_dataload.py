@@ -1,7 +1,8 @@
 import pandas as pd
 import requests
 import io
-import pyodbc
+import psycopg2
+
 import re 
 import numpy as np
 from zipfile import ZipFile
@@ -9,51 +10,65 @@ from zipfile import ZipFile
 Atualizações semanais pelo GitHub da Agência de estatísticas do Estado de São Paulo (SEADE)
 https://github.com/seade-R/dados-covid-sp
 '''
-## Conectar com o banco
-conn = pyodbc.connect('Driver={SQL Server};'
-                          'Server=DESKTOP-5HPPJ5N\SQLEXPRESS;'
-                          'Database=Covid19;'
-                          'Trusted_Connection=yes;')
 
+conn=psycopg2.connect(host="localhost",
+                        port="5432",
+                        user="postgres",
+                        password="webpro33",
+                        database="covidsp")
+print("Connected!")
 cursor = conn.cursor()
+
+
+'''
+cursor.execute("SELECT * FROM data_semana")
+row = cursor.fetchone()
+print(row)
+'''
 
 def inserir_dia_semana(df_dia_semana):
     for index, row in df_dia_semana.iterrows():
         cursor.execute(
-            "IF NOT EXISTS(SELECT data FROM data_semana WHERE data = ?) INSERT INTO data_semana (data, semana_ep) values(?,?)",
-            row.datahora, row.datahora, row.semana_epidem)
-    cursor.commit()
+            "INSERT INTO data_semana (data, semana_ep) values(%s,%s) ON CONFLICT DO NOTHING",
+            (row.datahora, row.semana_epidem))
+    conn.commit()
+    
 
 def inserir_drs(df_drs):
+
+    df_drs = df_drs.append({'datahora': '', 'cod_drs': '99', 'nome_drs': 'INDEFINIDO'}, ignore_index=True)
     for index, row in df_drs.iterrows():
         cursor.execute(
-            "IF EXISTS(SELECT cod_drs FROM drs WHERE cod_drs = ?) UPDATE drs SET nome_drs = ? WHERE cod_drs = ?"
-            " ELSE INSERT INTO drs (cod_drs, nome_drs) VALUES(?,?)", row.cod_drs, row.nome_drs, row.cod_drs,
-            row.cod_drs, row.nome_drs)
-    cursor.commit()
-
+            "INSERT INTO drs (cod_drs, nome_drs) VALUES(%s, %s) ON CONFLICT DO NOTHING",(row.cod_drs, row.nome_drs))
+    conn.commit()
+            
 def inserir_municipios(df_cidades):
     df_cidades['latitude'] = df_cidades['latitude'].apply(lambda x: x.replace(",", "."))
     df_cidades['longitude'] = df_cidades['longitude'].apply(lambda x: x.replace(",", "."))
 
+    df_cidades = df_cidades.append(
+        {'datahora':'', 'codigo_ibge': '3599999', 'nome_munic': 'INDEFINIDO', 'cod_drs': '99', 'nome_drs': '',
+         'nome_ra': '', 'cod_ra': '99', 'populacao': '0', 'pop_60': '0','latitude': '0', 'longitude': '0'}, ignore_index=True)
+   
+    
     for index, row in df_cidades.iterrows():
         cursor.execute(
-            "IF EXISTS(SELECT cod_ibge FROM municipio WHERE cod_ibge = ?) UPDATE municipio SET nome_municipio "
-            "= ?, cod_drs = ?, pop = ?, pop60 = ?, latitude = ?, longitude = ? WHERE cod_ibge = ? ELSE INSERT "
-            "INTO municipio (cod_ibge, nome_municipio, cod_drs, pop, pop60, latitude, longitude) VALUES(?,?,?,"
-            "?,?,?,?)", row.codigo_ibge, row.nome_munic, row.cod_drs, row.populacao, row.pop_60, row.latitude,
-            row.longitude, row.codigo_ibge, row.codigo_ibge, row.nome_munic, row.cod_drs, row.populacao, row.pop_60,
-            row.latitude, row.longitude)
-    cursor.commit()
+            "INSERT INTO municipio (cod_ibge, nome_municipio, cod_drs, pop, pop60, latitude, longitude) VALUES(%s,%s,%s,%s,%s,%s,%s)"
+            "ON CONFLICT (cod_ibge) DO UPDATE SET nome_municipio=%s, cod_drs=%s, pop=%s, pop60=%s, latitude=%s, longitude=%s"
+            , (row.codigo_ibge, row.nome_munic, row.cod_drs, row.populacao, row.pop_60, row.latitude,
+            row.longitude, row.nome_munic, row.cod_drs, row.populacao, row.pop_60, row.latitude, row.longitude))
+    conn.commit()
 
 def inserir_casos(df_covid_sp):
     for index, row in df_covid_sp.iterrows():
         cursor.execute("INSERT INTO covid_casos (dia, municipio_id, casos_novos, obitos_novos) values(?,?,?,?)",
-                       row.datahora, row.codigo_ibge, row.casos_novos, row.obitos_novos)
+                       [row.datahora, row.codigo_ibge, row.casos_novos, row.obitos_novos])
     cursor.commit()
 
 def inserir_casos_doencas(df_casos_doenca):
+    cursor.execute("TRUNCATE TABLE casos_doencas")
     df_casos_doenca = df_casos_doenca.replace({np.nan: None})
+    df_casos_doenca['codigo_ibge'] = df_casos_doenca['codigo_ibge'].apply(lambda x: 3599999 if x == 9999999 else x)
     df_casos_doenca['cs_sexo'] = df_casos_doenca['cs_sexo'].apply(lambda x: 'F' if x == 'FEMININO' else 'M')
     df_casos_doenca['diagnostico_covid19'] = df_casos_doenca['diagnostico_covid19'].apply(
         lambda x: 'TRUE' if x == 'CONFIRMADO' else 'FALSE')
@@ -85,16 +100,19 @@ def inserir_casos_doencas(df_casos_doenca):
     df_casos_doenca['sindrome_de_down'] = df_casos_doenca['sindrome_de_down'].apply(
         lambda x: 'FALSE' if (x == 'IGNORADO' or x == 'NÃO') else 'TRUE')
     for index, row in df_casos_doenca.iterrows():
-        cursor.execute("INSERT INTO casos_doencas (id, dia_inicio_sintomas, municipio, idade, cs_sexo, "
-                       "diagnostico_covid19, obito, asma, cardiopatia, diabetes, doenca_hematologica, doenca_hepatica, "
-                       "doenca_neurologica, doenca_renal, imunodepressao, obesidade, outros_fatores_de_risco, "
-                       "pneumopatia, puerpera, sindrome_de_down) values(NEXT VALUE FOR casos_doencas_id,?,?,?,?,?,?,?,?,"
-                       "?,?,?,?,?,?,?,?,?,?,?)", row.data_inicio_sintomas, row.codigo_ibge, row.idade, row.cs_sexo,
-                       row.diagnostico_covid19, row.obito, row.asma, row.cardiopatia, row.diabetes,
-                       row.doenca_hematologica,
-                       row.doenca_hepatica, row.doenca_neurologica, row.doenca_renal, row.imunodepressao, row.obesidade,
-                       row.outros_fatores_de_risco, row.pneumopatia, row.puerpera, row.sindrome_de_down)
-    cursor.commit()
+        print(index)
+        cursor.execute("INSERT INTO casos_doencas (dia_inicio_sintomas, municipio, idade, cs_sexo, diagnostico_covid19,"
+                       "obito, asma, cardiopatia, diabetes, doenca_hematologica, doenca_hepatica, doenca_neurologica, "
+                       "doenca_renal, imunodepressao, obesidade, outros_fatores_de_risco,pneumopatia, puerpera, "
+                       "sindrome_de_down) values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                       (row.data_inicio_sintomas, row.codigo_ibge, row.idade, row.cs_sexo, row.diagnostico_covid19,
+                        row.obito, row.asma, row.cardiopatia, row.diabetes, row.doenca_hematologica,  
+                        row.doenca_hepatica,row.doenca_neurologica, row.doenca_renal, row.imunodepressao,
+                        row.obesidade,row.outros_fatores_de_risco, row.pneumopatia, row.puerpera, row.sindrome_de_down))
+    
+    
+    #df_casos_doenca.to_sql('casos_doencas', con=engine, if_exists='append')
+    conn.commit()
 
 def inserir_internacoes(df_internacoes, df_drs):
     ## Descobrir o cod_drs -- Diferente do arquivo de dados_covid_sp
@@ -130,13 +148,13 @@ def inserir_internacoes(df_internacoes, df_drs):
                        "[leitos_pc], [internacoes_7d], [internacoes7d_l], [internacoes7v7], [ocupacao_leitos_ultimo_dia], "
                        "[pacientes_enf_mm7d], [total_covid_enf_mm7d], [pacientes_enf_ultimo_dia], "
                        "[total_covid_enf_ultimo_dia], [internacoes_ultimo_dia]) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                       row.datahora, row.cod_drs, row.pacientes_uti_ultimo_dia,
+                       [row.datahora, row.cod_drs, row.pacientes_uti_ultimo_dia,
                        row.total_covid_uti_ultimo_dia, row.pacientes_uti_mm7d, row.total_covid_uti_mm7d,
                        row.ocupacao_leitos, row.populacao,
                        row.leitos_pc, row.internacoes_7d, row.internacoes_7d_l, row.internacoes_7v7,
                        row.ocupacao_leitos_ultimo_dia,
                        row.pacientes_enf_mm7d, row.total_covid_enf_mm7d, row.pacientes_enf_ultimo_dia,
-                       row.total_covid_enf_ultimo_dia, row.internacoes_ultimo_dia)
+                       row.total_covid_enf_ultimo_dia, row.internacoes_ultimo_dia])
     cursor.commit()
 
 
@@ -160,23 +178,23 @@ print('Semana Epi  Finalizado!')
 df_cidades = df_covid_sp[['datahora', 'codigo_ibge', 'nome_munic', 'cod_drs','nome_drs', 'nome_ra', 'cod_ra', 'pop', 'pop_60','latitude', 'longitude']].sort_values(by='datahora', ascending=False).drop_duplicates(subset="codigo_ibge").dropna().reset_index().rename(columns={'pop':'populacao'})
 df_drs = df_cidades[['datahora', 'cod_drs', 'nome_drs']].sort_values(by='datahora', ascending=False).drop_duplicates(subset="cod_drs").reset_index()
 
-'''
+
 print('Inserir DRS (somente primeira execução)')
 print("Total registros drs: ", len(df_drs))
 inserir_drs(df_drs)
 print('DRS  Finalizado!')
-'''
+
 
 # GET municipios
-'''
+
 print('Inserir Cidades (somente primeira execução)')
 print("Total registros cidades: ", len(df_cidades))
 inserir_municipios(df_cidades)
 print('Cidades  Finalizado!')
-'''
+
 
 ## GET Casos/Obitos
-
+'''
 print('Inserir Casos_Obitos novos')
 cursor.execute('SELECT MAX(dia) FROM covid_casos')
 max_day = cursor.fetchone()[0]
@@ -185,8 +203,8 @@ df_covid_sp = df_covid_sp[df_covid_sp.datahora > max_day]
 print("Total registros covid_casos: ", len(df_covid_sp))
 inserir_casos(df_covid_sp)
 print('Casos/Obitos  Finalizado!')
-
 '''
+
 #### Casos doenças preexistentes
 print('Inserir Casos_Doenças novos')
 url = 'https://github.com/seade-R/dados-covid-sp/blob/master/data/casos_obitos_doencas_preexistentes.csv.zip?raw=true'
@@ -198,6 +216,7 @@ inserir_casos_doencas(df_casos_doenca)
 print('Casos/Doenças  Finalizado!')
 
 #### Casos raça
+'''
 url = 'https://raw.githubusercontent.com/seade-R/dados-covid-sp/master/data/casos_obitos_raca_cor.csv.zip'
 download = requests.get(url).content
 zipfile = ZipFile(io.BytesIO(download))
@@ -233,7 +252,7 @@ print("Total registros internações serie antiga: ", len(df_internacoes))
 inserir_internacoes(df_internacoes, df_drs)
 print('Internações série antiga Completo')
 '''
-
+'''
 print('Internações série nova')
 # Get ultimo dia de registo de internações
 cursor.execute('SELECT MAX(dia) FROM covid_internacoes')
@@ -250,5 +269,6 @@ print("Total registros internações serie nova: ", len(df_internacoes))
 
 inserir_internacoes(df_internacoes, df_drs)
 print('Internações série nova Completo')
+'''
 
-
+cursor.close()
